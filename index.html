@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Google Injector</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #toolbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ccc;
+      height: 50px;
+    }
+
+    #searchInput {
+      flex: 1;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+    }
+
+    #injectBtn {
+      padding: 8px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #injectBtn:hover {
+      background: #0056b3;
+    }
+
+    webview {
+      flex: 1;
+      min-height: 0;
+      display: block;
+      border: none;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="toolbar">
+    <input id="searchInput" type="text" placeholder="Enter your search query…" />
+    <button id="injectBtn">Inject & Search</button>
+  </div>
+
+  <webview id="googleWebview" src="https://google.com" style="display:inline-flex; height:480px"></webview>
+
+  <script>
+    const webview = document.getElementById('googleWebview');
+    const input = document.getElementById('searchInput');
+    const button = document.getElementById('injectBtn');
+
+    button.addEventListener('click', async () => {
+      const query = input.value.trim();
+      if (!query) {
+        alert('Please enter a search term.');
+        return;
+      }
+
+      const serviceResult = await window.electronAPI.callDeepseek(query);
+
+      webview.executeJavaScript(`
+        (function() {
+          const textarea = document.querySelector('textarea[name="q"]');
+          if (!textarea) {
+            alert('Could not find Google search box.');
+            return;
+          }
+
+          textarea.value = ${JSON.stringify(serviceResult)};
+
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+          const searchBtn = document.querySelector('input[name="btnK"]');
+          if (searchBtn) {
+            searchBtn.click();
+          } else {
+            const keyboardEvent = new KeyboardEvent('keydown', {
+              key: 'Enter',
+              code: 'Enter',
+              keyCode: 13,
+              which: 13,
+              bubbles: true
+            });
+            textarea.dispatchEvent(keyboardEvent);
+          }
+        })();
+      `).catch(err => {
+        console.error('Injection failed:', err);
+      });
+    });
+
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') button.click();
+    });
+  </script>
+</body>
+
+</html>
